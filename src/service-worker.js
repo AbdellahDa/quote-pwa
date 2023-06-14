@@ -1,14 +1,43 @@
-workbox.precaching.precacheAndRoute(self.__WB_MANIFEST);
+const CACHE_NAME = 'quote-app-cache-v1';
+const urlsToCache = [
+    '/',
+    '/index.html',
+    '/favicon.ico',
+    '/logo192.png',
+    '/logo512.png',
+    '/manifest.json',
+    '/robots.txt',
+    'https://api.quotable.io/random',
+];
 
-workbox.routing.registerRoute(
-    ({url}) => url.origin === 'https://api.quotable.io',
-    new workbox.strategies.NetworkFirst()
-);
+self.addEventListener('install', (event) => {
+    event.waitUntil(
+        caches.open(CACHE_NAME).then((cache) => {
+            return cache.addAll(urlsToCache);
+        })
+    );
+});
 
-self.addEventListener('fetch', function(event) {
+self.addEventListener('fetch', (event) => {
     event.respondWith(
-        caches.match(event.request).then(function(response) {
-            return response || fetch(event.request);
+        caches.match(event.request).then((response) => {
+            if (response) {
+                return response;
+            }
+
+            return fetch(event.request).then((response) => {
+                if (!response || response.status !== 200 || response.type !== 'basic') {
+                    return response;
+                }
+
+                const responseToCache = response.clone();
+
+                caches.open(CACHE_NAME).then((cache) => {
+                    cache.put(event.request, responseToCache);
+                });
+
+                return response;
+            });
         })
     );
 });
