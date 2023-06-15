@@ -1,43 +1,41 @@
-const CACHE_NAME = 'quote-app-cache-v1';
-const urlsToCache = [
-    '/',
-    '/index.html',
-    '/favicon.ico',
-    '/logo192.png',
-    '/logo512.png',
-    '/manifest.json',
-    '/robots.txt',
-    'https://api.quotable.io/random',
-];
+import { clientsClaim } from 'workbox-core';
+import { ExpirationPlugin } from 'workbox-expiration';
+import { precacheAndRoute, createHandlerBoundToURL } from 'workbox-precaching';
+import { registerRoute } from 'workbox-routing';
+import { StaleWhileRevalidate } from 'workbox-strategies';
 
-self.addEventListener('install', (event) => {
-    event.waitUntil(
-        caches.open(CACHE_NAME).then((cache) => {
-            return cache.addAll(urlsToCache);
-        })
-    );
-});
+clientsClaim();
 
-self.addEventListener('fetch', (event) => {
-    event.respondWith(
-        caches.match(event.request).then((response) => {
-            if (response) {
-                return response;
-            }
+precacheAndRoute(self.__WB_MANIFEST);
 
-            return fetch(event.request).then((response) => {
-                if (!response || response.status !== 200 || response.type !== 'basic') {
-                    return response;
-                }
+const fileExtensionRegexp = /\/[^\/?]+\.[^\/]+$/;
+registerRoute(
+    ({ request, url }) => {
+        if (request.mode !== 'navigate') {
+            return false;
+        }
 
-                const responseToCache = response.clone();
+        if (url.pathname.startsWith('/_')) {
+            return false;
+        }
 
-                caches.open(CACHE_NAME).then((cache) => {
-                    cache.put(event.request, responseToCache);
-                });
+        return !(url.pathname.match(fileExtensionRegexp));
+    },
+    createHandlerBoundToURL('/index.html')
+);
 
-                return response;
-            });
-        })
-    );
+registerRoute(
+    ({ url }) => url.origin === self.location.origin && url.pathname.endsWith('.png'),
+    new StaleWhileRevalidate({
+        cacheName: 'images',
+        plugins: [
+            new ExpirationPlugin({ maxEntries: 50 }),
+        ],
+    })
+);
+
+self.addEventListener('message', (event) => {
+    if (event.data && event.data.type === 'SKIP_WAITING') {
+        self.skipWaiting();
+    }
 });
