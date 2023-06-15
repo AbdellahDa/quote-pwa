@@ -1,43 +1,43 @@
-/* eslint-disable no-restricted-globals */
-import { clientsClaim } from 'workbox-core';
-import { ExpirationPlugin } from 'workbox-expiration';
-import { precacheAndRoute, createHandlerBoundToURL } from 'workbox-precaching';
-import { registerRoute } from 'workbox-routing';
-import { StaleWhileRevalidate } from 'workbox-strategies';
+const CACHE_NAME = 'quote-pwa-cache';
+const urlsToCache = [
+    '/',
+    '/index.html',
+    '/manifest.json',
+    '/style.css'
+];
 
-clientsClaim();
+// Installeer de Service Worker
+self.addEventListener('install', (event) => {
+    event.waitUntil(
+        caches.open(CACHE_NAME)
+            .then((cache) => {
+                return cache.addAll(urlsToCache);
+            })
+    );
+});
 
-precacheAndRoute(self.__WB_MANIFEST);
+// Activeert de Service Worker
+self.addEventListener('activate', (event) => {
+    event.waitUntil(
+        caches.keys()
+            .then((cacheNames) => {
+                return Promise.all(
+                    cacheNames.filter((name) => {
+                        return name !== CACHE_NAME;
+                    }).map((name) => {
+                        return caches.delete(name);
+                    })
+                );
+            })
+    );
+});
 
-const fileExtensionRegexp = /\/[^/?]+\.[^/]+$/;
-
-registerRoute(
-    ({ request, url }) => {
-        if (request.mode !== 'navigate') {
-            return false;
-        }
-
-        if (url.pathname.startsWith('/_')) {
-            return false;
-        }
-
-        return !(url.pathname.match(fileExtensionRegexp));
-    },
-    createHandlerBoundToURL('/index.html')
-);
-
-registerRoute(
-    ({ url }) => url.origin === self.location.origin && url.pathname.endsWith('.png'),
-    new StaleWhileRevalidate({
-        cacheName: 'images',
-        plugins: [
-            new ExpirationPlugin({ maxEntries: 50 }),
-        ],
-    })
-);
-
-self.addEventListener('message', (event) => {
-    if (event.data && event.data.type === 'SKIP_WAITING') {
-        self.skipWaiting();
-    }
+// Intercepteer netwerkverzoeken en reageer met gecachte bronnen
+self.addEventListener('fetch', (event) => {
+    event.respondWith(
+        caches.match(event.request)
+            .then((response) => {
+                return response || fetch(event.request);
+            })
+    );
 });
