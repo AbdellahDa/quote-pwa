@@ -1,14 +1,13 @@
-
+// Cache-naam en bestanden om te cachen
 const CACHE_NAME = 'quote-pwa-cache';
 const urlsToCache = [
     '/',
     '/index.html',
-    '/manifest.json',
-    '/style.css'
+    '../manifest.json',
 ];
 
 // Installeer de Service Worker
-window.self.addEventListener('install', (event) => {
+self.addEventListener('install', (event) => {
     event.waitUntil(
         caches.open(CACHE_NAME)
             .then((cache) => {
@@ -17,8 +16,8 @@ window.self.addEventListener('install', (event) => {
     );
 });
 
-// Activeert de Service Worker
-window.self.addEventListener('activate', (event) => {
+// Activeer de Service Worker
+self.addEventListener('activate', (event) => {
     event.waitUntil(
         caches.keys()
             .then((cacheNames) => {
@@ -34,7 +33,7 @@ window.self.addEventListener('activate', (event) => {
 });
 
 // Intercepteer netwerkverzoeken en reageer met gecachte bronnen
-window.self.addEventListener('fetch', (event) => {
+self.addEventListener('fetch', (event) => {
     event.respondWith(
         caches.match(event.request)
             .then((response) => {
